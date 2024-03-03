@@ -8,6 +8,8 @@ import (
 	"github.com/llir/llvm/internal/enc"
 )
 
+const opaquePtrStr = "ptr"
+
 // === [ Types ] ===============================================================
 
 // Convenience types.
@@ -457,6 +459,15 @@ func NewPointer(elemType Type) *PointerType {
 
 // Equal reports whether t and u are of equal type.
 func (t *PointerType) Equal(u Type) bool {
+	// A pointer type will never match a non pointer type
+	p, ok := u.(*PointerType)
+	if !ok {
+		return false
+	}
+	// Opaque pointers `ptr` will match any pointer type
+	if p.ElemType == nil || t.ElemType == nil {
+		return true
+	}
 	// HACK: to prevent infinite loops (e.g. struct foo containing field of type
 	// pointer to foo).
 	return t.String() == u.String()
@@ -475,11 +486,24 @@ func (t *PointerType) String() string {
 func (t *PointerType) LLString() string {
 	// Elem=Type AddrSpaceopt '*'
 	buf := &strings.Builder{}
-	buf.WriteString(t.ElemType.String())
+	isOpaquePtr := false
+	if t.ElemType == nil { // opaque ptr type
+		buf.WriteString(opaquePtrStr)
+		isOpaquePtr = true
+	} else {
+		buf.WriteString(t.ElemType.String())
+
+		// Check if the ElemType is a PointerType and if its ElemType is nil
+		if p, ok := t.ElemType.(*PointerType); ok && p.ElemType == nil {
+			isOpaquePtr = true
+		}
+	}
 	if t.AddrSpace != 0 {
 		fmt.Fprintf(buf, " %s", t.AddrSpace)
 	}
-	buf.WriteString("*")
+	if !isOpaquePtr {
+		buf.WriteString("*")
+	}
 	return buf.String()
 }
 
