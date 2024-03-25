@@ -218,7 +218,9 @@ func NewStore(src, dst value.Value) *InstStore {
 	if !ok {
 		panic(fmt.Errorf("invalid store dst operand type; expected *types.Pointer, got %T", dst.Type()))
 	}
-	if !src.Type().Equal(dstPtrType.ElemType) {
+	// int can be stored in ptr
+	_, isInt := src.Type().(*types.IntType)
+	if !isInt && !src.Type().Equal(dstPtrType.ElemType) {
 		panic(fmt.Errorf("store operands are not compatible: src=%v; dst=%v", src.Type(), dst.Type()))
 	}
 	return &InstStore{Src: src, Dst: dst}
